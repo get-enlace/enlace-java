@@ -90,8 +90,9 @@ Written and buildable, but three things outside this repo still need to happen b
     a `io.github.<owner>` namespace by proving control of that GitHub account/org — no separate
     domain needed, unlike a custom groupId would require).
 - **On `enlace-ui`**: add this repo as a `repository_dispatch: enlace-ui-release` target
-  (currently fires for `enlace-js`, `enlace-dotnet`, and `enlace-python`) — a separate change,
-  in that repo.
+  (fires for `enlace-js`, `enlace-dotnet`, and now `enlace-java`; `enlace-python` isn't listed
+  yet — see its own CONTRIBUTING.md) — a change in that repo, pending review before it's
+  committed and pushed there.
 
 `deploy-dev` only needs the `development` environment to exist — `GITHUB_TOKEN` is automatic,
 no secret to add. `deploy-prod` needs all of the above; until then it fails at either the GPG
