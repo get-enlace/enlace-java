@@ -91,7 +91,7 @@ jobs:
           # (dev or prod) to decide whether there's anything new to publish.
           fetch-depth: 0
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -177,7 +177,7 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
