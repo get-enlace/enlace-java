@@ -145,8 +145,16 @@
         enlace-python's CI/CD docs), Maven Central has no equivalent as of this writing —
         publishing here still needs a real GPG keypair and a Central Portal user token, both
         as GitHub secrets. See CONTRIBUTING.md's "One-time setup this needs" for exactly what.
-        This profile is authored and buildable locally but not yet verified against a real
-        Central Portal publish — no credentials exist yet to test it end-to-end.
+        This profile is authored and buildable locally, and has been verified end to end
+        against a real Central Portal account (deploy-prod's first live run) — it initially
+        failed with a 401 against the `github` distributionManagement repo above, because
+        central-publishing-maven-plugin's `<extensions>true</extensions>` does NOT, as its own
+        docs can read as implying, replace maven-deploy-plugin's own `deploy`-phase execution —
+        both stay bound to the same phase, so the plain deploy-plugin still tried (and failed)
+        to resolve remote metadata from `github` using credentials this profile never
+        configures for that server id. Skipping maven-deploy-plugin below, only within this
+        profile, is what actually makes central-publishing-maven-plugin the sole thing
+        deploying when `-Prelease` is active.
     -->
     <profiles>
         <profile>
@@ -193,10 +201,12 @@
                             </execution>
                         </executions>
                     </plugin>
-                    <!-- Sonatype's official Central Portal publisher. As a build extension,
-                         it takes over `mvn deploy` for this profile — the plain
-                         distributionManagement block above is what handles `mvn deploy`
-                         when this profile is NOT active (deploy-dev). -->
+                    <!-- Sonatype's official Central Portal publisher, bound to the `deploy`
+                         phase like maven-deploy-plugin below — declaring it here does NOT by
+                         itself stop the plain deploy-plugin from also running against
+                         distributionManagement (confirmed the hard way: see the block comment
+                         above this profile). Skipping that plugin, just below, is what makes
+                         this the only thing that actually deploys when -Prelease is active. -->
                     <plugin>
                         <groupId>org.sonatype.central</groupId>
                         <artifactId>central-publishing-maven-plugin</artifactId>
@@ -205,6 +215,19 @@
                         <configuration>
                             <publishingServerId>central</publishingServerId>
                             <autoPublish>true</autoPublish>
+                        </configuration>
+                    </plugin>
+                    <!-- Prevents the standard deploy-plugin execution (bound to the same
+                         `deploy` phase) from also running against distributionManagement's
+                         `github` repo — this profile never configures credentials for that
+                         server id, so left unskipped it 401s trying to resolve remote
+                         metadata there before central-publishing-maven-plugin's own execution
+                         even runs. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-deploy-plugin</artifactId>
+                        <configuration>
+                            <skip>true</skip>
                         </configuration>
                     </plugin>
                 </plugins>
