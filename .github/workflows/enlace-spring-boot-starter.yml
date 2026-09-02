@@ -1,0 +1,247 @@
+name: "enlace-spring-boot-starter"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/main/**
+      - pom.xml
+      - scripts/ci-fetch-ui.sh
+      - ui-version.txt
+      - .github/workflows/enlace-spring-boot-starter.yml
+  # Fired by enlace-ui's own release workflow after it publishes (dev or
+  # prod) — release-strategy.md §5/§6. Any workflow in this repo declaring
+  # this event type picks it up; no filename coupling to enlace-ui's side.
+  # No workflow_dispatch escape hatch — a manual override is just a commit
+  # (even a trivial one) pushed to main, matching this repo's "CI reacts to
+  # what's committed" convention.
+  repository_dispatch:
+    types: [enlace-ui-release]
+
+permissions:
+  contents: write # push commits/tags
+  packages: write # publish to GitHub Packages
+
+jobs:
+  # The dispatch listener does exactly one thing: pin @get-enlace/ui's
+  # target *prod* version and commit it. Only meaningful for a "production"
+  # dispatch — dev builds always fetch whatever's currently under the
+  # floating `dev` dist-tag (see deploy-dev below) regardless of what's
+  # pinned here, so there's nothing to pin or react to for a "development"
+  # dispatch; this job simply doesn't run for one.
+  handle-ui-release:
+    if: github.event_name == 'repository_dispatch' && github.event.client_payload.environment == 'production'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      pinned: ${{ steps.pin.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Update pinned @get-enlace/ui version
+        id: pin
+        run: |
+          new_version="${{ github.event.client_payload.ui-version }}"
+          current_version="$(cat ui-version.txt 2>/dev/null || true)"
+          if [ "$new_version" = "$current_version" ]; then
+            echo "ui-version.txt already pinned to ${new_version} — nothing to do"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "$new_version" > ui-version.txt
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit pinned version
+        if: steps.pin.outputs.changed == 'true'
+        run: |
+          git add ui-version.txt
+          git commit -m "chore: pin @get-enlace/ui to ${{ github.event.client_payload.ui-version }} (enlace-ui-release dispatch)"
+          git push origin HEAD:main
+
+  # Unconditional — runs on every trigger (push, or repository_dispatch for
+  # either environment), no `needs: handle-ui-release`. This job's only job
+  # is "always re-fetch the current @dev tag and rebuild" — it has no
+  # dependency on anything handle-ui-release does (that job only pins a
+  # *prod* target), so gating deploy-dev on handle-ui-release's outcome
+  # would mean a "development" dispatch (handle-ui-release deliberately
+  # skips those) never actually triggered a rebuild here at all, silently
+  # defeating the entire point of this cascade — an embedding-based adapter
+  # is supposed to rebuild on every enlace-ui change, dev included, not
+  # just whenever this repo's own main happens to get pushed to.
+  deploy-dev:
+    runs-on: ubuntu-latest
+    environment: development
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          # Full history + tags — "Check for changes" below diffs against
+          # this package's most recent enlace-spring-boot-starter-v* tag
+          # (dev or prod) to decide whether there's anything new to publish.
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
+
+      - run: mvn -B -ntp verify
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # Unlike a plain push (where "nothing in src/main changed" genuinely
+      # means nothing to publish), a repository_dispatch means @get-enlace/ui
+      # itself changed — this repo embeds that bundle, so it must rebuild
+      # and republish regardless of whether src/main/pom.xml changed at all.
+      - name: Check for changes since last publish
+        id: diff
+        run: |
+          last_tag="$(git tag -l 'enlace-spring-boot-starter-v*' --sort=-creatordate | head -n1)"
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "repository_dispatch trigger — always republish (the UI bundle changed)"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "$last_tag" ] && git diff --quiet "$last_tag" -- src/main pom.xml; then
+            echo "src/main, pom.xml: unchanged since ${last_tag}"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Dev builds always track the floating `dev` dist-tag — @get-enlace/ui
+      # always publishes its dev builds under that one tag no matter what
+      # the underlying version number is, so there's no version to resolve
+      # or pin here at all, unlike deploy-prod below.
+      - name: Fetch @get-enlace/ui (dev)
+        if: steps.diff.outputs.changed == 'true'
+        run: scripts/ci-fetch-ui.sh dev
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # run_id, not run_number: run_number resets to 1 per workflow file,
+      # which risks colliding with a version already published under that
+      # same repo-local counter.
+      - name: Set the dev version
+        id: version
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          base_version="$(mvn -q -B -ntp help:evaluate -Dexpression=project.version -DforceStdout)"
+          dev_version="${base_version%-SNAPSHOT}-dev.${{ github.run_id }}"
+          echo "devVersion=$dev_version" >> "$GITHUB_OUTPUT"
+          mvn -B -ntp versions:set -DnewVersion="$dev_version" -DgenerateBackupPoms=false
+
+      - name: Publish to GitHub Packages (dev)
+        if: steps.diff.outputs.changed == 'true'
+        run: mvn -B -ntp -DskipTests deploy
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git tag "enlace-spring-boot-starter-v${{ steps.version.outputs.devVersion }}"
+          git push origin "enlace-spring-boot-starter-v${{ steps.version.outputs.devVersion }}"
+
+  # Requires deploy-dev to have succeeded first — prod never ships anything
+  # that hasn't just gone out (or already sat unchanged) as a dev build.
+  # Also gated behind the production environment's required-reviewer
+  # approval: this job pauses here until someone approves it.
+  deploy-prod:
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: write
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+          server-id: central
+          server-username: CENTRAL_TOKEN_USERNAME
+          server-password: CENTRAL_TOKEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+
+      - run: mvn -B -ntp verify
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # The version to embed comes from ui-version.txt — pinned by
+      # handle-ui-release whenever enlace-ui published a real prod release,
+      # not re-resolved here. Fetched from public npmjs.org (not GitHub
+      # Packages) since this is the prod path — release-strategy.md §3.
+      - name: Fetch @get-enlace/ui (pinned in ui-version.txt, from npmjs.org)
+        run: scripts/ci-fetch-ui.sh "$(cat ui-version.txt)" https://registry.npmjs.org
+
+      # Whatever's already committed in pom.xml is what gets published —
+      # semver bump type (patch/minor/major) is a human call, decided by
+      # editing <version> before this runs, not guessed by CI.
+      - name: Read current version
+        id: current
+        run: echo "version=$(mvn -q -B -ntp help:evaluate -Dexpression=project.version -DforceStdout)" >> "$GITHUB_OUTPUT"
+
+      # Signs the jar/sources/javadoc with the imported GPG key and
+      # publishes through Sonatype's Central Portal — see the `release`
+      # profile in pom.xml for what this activates. No OIDC trusted
+      # publishing equivalent exists for Maven Central (unlike NuGet's/
+      # PyPI's), so this relies on the GPG key + Central Portal token
+      # secrets instead — see CONTRIBUTING.md's "One-time setup this needs".
+      - name: Publish to Maven Central (prod)
+        run: mvn -B -ntp -DskipTests -Prelease deploy
+        env:
+          CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+          CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Tag the release
+        run: git tag "enlace-spring-boot-starter-v${{ steps.current.outputs.version }}"
+
+      # Stages the next release as a patch bump on top of what was just
+      # published. Edit pom.xml's <version> by hand before the next prod
+      # release if it actually needs a bigger (minor/major) bump.
+      - name: Compute next patch version
+        id: next
+        run: |
+          IFS='.' read -r major minor patch <<< "${{ steps.current.outputs.version }}"
+          echo "version=${major}.${minor}.$((patch + 1))-SNAPSHOT" >> "$GITHUB_OUTPUT"
+
+      - name: Bump to next version
+        run: |
+          mvn -B -ntp versions:set -DnewVersion="${{ steps.next.outputs.version }}" -DgenerateBackupPoms=false
+          git add pom.xml
+
+      - name: Commit version bump
+        run: |
+          git commit -m "chore(enlace-spring-boot-starter): bump to ${{ steps.next.outputs.version }} after v${{ steps.current.outputs.version }} release"
+
+      - name: Push commit and tag
+        run: git push origin HEAD:main "enlace-spring-boot-starter-v${{ steps.current.outputs.version }}"

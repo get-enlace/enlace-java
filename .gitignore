@@ -1,0 +1,11 @@
+target/
+*.class
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Populated by scripts/dev-sync-ui.sh (local) or scripts/ci-fetch-ui.sh (CI) —
+# a build artifact, never committed. Mirrors enlace-dotnet's wwwroot-embedded.
+src/main/resources/enlace-ui-embedded/*
+!src/main/resources/enlace-ui-embedded/.gitkeep
