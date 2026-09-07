@@ -94,7 +94,7 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '25'
           cache: 'maven'
           server-id: github
           server-username: GITHUB_ACTOR
@@ -180,7 +180,7 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '25'
           cache: 'maven'
           server-id: central
           server-username: CENTRAL_TOKEN_USERNAME
@@ -232,7 +232,7 @@ jobs:
         id: next
         run: |
           IFS='.' read -r major minor patch <<< "${{ steps.current.outputs.version }}"
-          echo "version=${major}.${minor}.$((patch + 1))-SNAPSHOT" >> "$GITHUB_OUTPUT"
+          echo "version=${major}.${minor}.$((patch + 1))" >> "$GITHUB_OUTPUT"
 
       - name: Bump to next version
         run: |
