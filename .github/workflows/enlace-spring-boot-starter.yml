@@ -143,7 +143,7 @@ jobs:
         if: steps.diff.outputs.changed == 'true'
         run: |
           base_version="$(mvn -q -B -ntp help:evaluate -Dexpression=project.version -DforceStdout)"
-          dev_version="${base_version%-SNAPSHOT}-dev.${{ github.run_id }}"
+          dev_version="${base_version%}-dev.${{ github.run_id }}"
           echo "devVersion=$dev_version" >> "$GITHUB_OUTPUT"
           mvn -B -ntp versions:set -DnewVersion="$dev_version" -DgenerateBackupPoms=false
 
