@@ -6,7 +6,7 @@
 
     <groupId>io.github.get-enlace</groupId>
     <artifactId>enlace-spring-boot-starter</artifactId>
-    <version>0.0.2-SNAPSHOT</version>
+    <version>0.0.2</version>
     <packaging>jar</packaging>
 
     <name>enlace-spring-boot-starter</name>
@@ -43,6 +43,7 @@
         <java.version>25</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
+        <maven.compiler.release>${java.version}</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>3.5.16</spring-boot.version>
     </properties>
