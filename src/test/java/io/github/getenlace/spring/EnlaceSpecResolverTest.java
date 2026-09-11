@@ -82,7 +82,7 @@ class EnlaceSpecResolverTest {
     }
 
     @Test
-    void fetchSpec_reFetchesFresh_andInjectsServersUrl_whenMissing() {
+    void fetchSpec_reFetchesFresh_unmodified() {
         // Both expectations declared upfront — MockRestServiceServer refuses to register more
         // once actual requests have started flowing through it.
         server.expect(requestTo(BASE_URL + "/v3/api-docs"))
@@ -93,7 +93,10 @@ class EnlaceSpecResolverTest {
         resolver.resolve(BASE_URL, null);
         String result = resolver.fetchSpec();
 
-        assertThat(result).contains("\"servers\"").contains(BASE_URL);
+        // No `servers` injected — a missing/relative servers[0].url is @get-enlace/ui's own
+        // job to resolve client-side now (see resolveBaseUrl), so this adapter just passes
+        // the freshly re-fetched document straight through, same as it arrived.
+        assertThat(result).isEqualToIgnoringWhitespace(OPEN_API_JSON);
     }
 
     @Test

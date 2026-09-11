@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.client.RestTemplate;
 
-import java.net.URI;
 import java.util.List;
 
 /**
@@ -77,22 +76,11 @@ class EnlaceSpecResolver {
                 + ". Set enlace.spec-url in application.properties to point at yours.");
     }
 
-    /**
-     * Fetches the spec fresh from the resolved URL and applies light post-processing (see
-     * {@link SpecDocument#ensureServersUrl}). Returns {@code null} if the URL hasn't been
-     * resolved yet or if the re-fetch fails — the caller (never stored here, matching the
-     * "read fresh each load" adapter contract from ARCHITECTURE.md §4) decides how to report
-     * that.
-     */
     String fetchSpec() {
         if (resolvedUrl == null) {
             return null;
         }
-        String json = tryFetch(resolvedUrl);
-        if (json == null) {
-            return null;
-        }
-        return SpecDocument.ensureServersUrl(json, baseAuthority(resolvedUrl), objectMapper);
+        return tryFetch(resolvedUrl);
     }
 
     String getResolvedUrl() {
@@ -109,16 +97,6 @@ class EnlaceSpecResolver {
             // Network error, non-JSON body, etc. — this candidate didn't work.
         }
         return null;
-    }
-
-    /** {@code scheme://host:port} of the URL the spec was actually fetched from — used as the fallback {@code servers[0].url}. */
-    private static String baseAuthority(String url) {
-        try {
-            URI uri = URI.create(url);
-            return uri.getScheme() + "://" + uri.getAuthority();
-        } catch (Exception e) {
-            return url;
-        }
     }
 
     private boolean isValidOpenApi(String json) {
