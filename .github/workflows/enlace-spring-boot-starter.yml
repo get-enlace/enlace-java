@@ -9,9 +9,9 @@ on:
       - scripts/ci-fetch-ui.sh
       - ui-version.txt
       - .github/workflows/enlace-spring-boot-starter.yml
-  # Fired by enlace-ui's own release workflow after it publishes (dev or
-  # prod) — release-strategy.md §5/§6. Any workflow in this repo declaring
-  # this event type picks it up; no filename coupling to enlace-ui's side.
+  # Fired by enlace's own release workflow after it publishes (dev or
+  # prod). Any workflow in this repo declaring this event type picks it
+  # up; no filename coupling to enlace's side.
   # No workflow_dispatch escape hatch — a manual override is just a commit
   # (even a trivial one) pushed to main, matching this repo's "CI reacts to
   # what's committed" convention.
@@ -74,7 +74,7 @@ jobs:
   # would mean a "development" dispatch (handle-ui-release deliberately
   # skips those) never actually triggered a rebuild here at all, silently
   # defeating the entire point of this cascade — an embedding-based adapter
-  # is supposed to rebuild on every enlace-ui change, dev included, not
+  # is supposed to rebuild on every enlace change, dev included, not
   # just whenever this repo's own main happens to get pushed to.
   deploy-dev:
     runs-on: ubuntu-latest
@@ -196,9 +196,9 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       # The version to embed comes from ui-version.txt — pinned by
-      # handle-ui-release whenever enlace-ui published a real prod release,
+      # handle-ui-release whenever enlace published a real prod release,
       # not re-resolved here. Fetched from public npmjs.org (not GitHub
-      # Packages) since this is the prod path — release-strategy.md §3.
+      # Packages) since this is the prod path.
       - name: Fetch @get-enlace/ui (pinned in ui-version.txt, from npmjs.org)
         run: scripts/ci-fetch-ui.sh "$(cat ui-version.txt)" https://registry.npmjs.org
 

@@ -10,7 +10,7 @@
 - `scripts/ci-fetch-ui.sh` — CI: fetches `@get-enlace/ui`'s published tarball, from GitHub
   Packages (dev) or npmjs.org (prod), and does the same (curl + tar, no Node)
 - `ui-version.txt` — the pinned `@get-enlace/ui` version `deploy-prod` embeds; updated by
-  `handle-ui-release` (see CI/CD below) whenever `enlace-ui` publishes a real prod release
+  `handle-ui-release` (see CI/CD below) whenever `enlace` publishes a real prod release
 
 ## Build & test
 
@@ -24,7 +24,7 @@ mvn package
 `src/main/resources/enlace-ui-embedded/` (the adapter's embedded static assets) is never
 committed — it's a build artifact, populated one of two ways:
 
-- **`scripts/dev-sync-ui.sh [path-to-enlace-ui-checkout]`** — builds `@get-enlace/ui` from a
+- **`scripts/dev-sync-ui.sh [path-to-enlace-checkout]`** — builds `@get-enlace/ui` from a
   local checkout and copies its `dist/` output in, so you can sanity-check the real
   embedded-resource path before a release without touching the registry.
 - **CI** (`scripts/ci-fetch-ui.sh`) — fetches the published tarball instead; see CI/CD below.
@@ -37,9 +37,8 @@ pattern, Maven-ized.
 - `.github/workflows/build.yml` — build + test on every PR into `main`.
 - `.github/workflows/enlace-spring-boot-starter.yml` — two triggers: push to `main`
   (path-filtered to `src/main/**`, `pom.xml`, `ui-version.txt`, etc.), and `repository_dispatch:
-  enlace-ui-release`, fired by `enlace-ui`'s own release workflow whenever it publishes (see
-  [`release-strategy.md`](https://github.com/get-enlace/enlace-ui)) — this repo is an **embedding-based**
-  adapter, so it must actively rebuild and republish on every `enlace-ui` change, or consumers
+  enlace-ui-release`, fired by `enlace`'s own release workflow whenever it publishes — this repo is an **embedding-based**
+  adapter, so it must actively rebuild and republish on every `enlace` change, or consumers
   stay frozen on an old bundle. No manual `workflow_dispatch` escape hatch — a forced rebuild is
   just a commit (even a trivial one) pushed to `main`.
 
@@ -89,7 +88,7 @@ Written and buildable, but three things outside this repo still need to happen b
     namespace is verified against the `get-enlace` GitHub org (Central Portal supports verifying
     a `io.github.<owner>` namespace by proving control of that GitHub account/org — no separate
     domain needed, unlike a custom groupId would require).
-- **On `enlace-ui`**: add this repo as a `repository_dispatch: enlace-ui-release` target
+- **On `enlace`**: add this repo as a `repository_dispatch: enlace-ui-release` target
   (fires for `enlace-js`, `enlace-dotnet`, and now `enlace-java`; `enlace-python` isn't listed
   yet — see its own CONTRIBUTING.md) — a change in that repo, pending review before it's
   committed and pushed there.

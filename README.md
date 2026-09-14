@@ -1,6 +1,6 @@
 # enlace-java
 
-Spring Boot starter adapter for [Enlace](https://github.com/get-enlace/enlace-ui) — a visual,
+Spring Boot starter adapter for [Enlace](https://github.com/get-enlace/enlace) — a visual,
 chained-execution canvas for any OpenAPI-documented API. Drag operations from your API onto a
 canvas, wire one call's output into the next call's input, and run the whole chain from the
 browser. Docs and the full picture of what Enlace is: [get-enlace.github.io](https://get-enlace.github.io/).
