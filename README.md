@@ -1,13 +1,12 @@
 # enlace-java
 
-Spring Boot starter adapter for [Enlace](https://github.com/get-enlace/enlace) — a visual,
-chained-execution canvas for any OpenAPI-documented API. Drag operations from your API onto a
-canvas, wire one call's output into the next call's input, and run the whole chain from the
-browser. Docs and the full picture of what Enlace is: [get-enlace.github.io](https://get-enlace.github.io/).
+Spring Boot starter adapter for [Enlace](https://github.com/get-enlace/enlace) — an interactive visual execution graph for any OpenAPI 3.x API. Drag operations from your API onto a canvas, wire inputs to outputs, and run multi-step workflows concurrently from the browser. Full documentation: [get-enlace.github.io](https://get-enlace.github.io/).
 
-This adapter's job is intentionally small: it serves your OpenAPI document and the canvas UI's
-static bundle. Nothing else — wiring up a chain, running it, and holding credentials all happen
-client-side, in the browser, once the page loads.
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.get-enlace/enlace-spring-boot-starter.svg)](https://central.sonatype.com/artifact/io.github.get-enlace/enlace-spring-boot-starter)
+[![Live Demo](https://img.shields.io/badge/demo-live%20on%20render-success)](https://enlace-fastapi.onrender.com/enlace/)
+[![Star on GitHub](https://img.shields.io/github/stars/get-enlace/enlace?style=social)](https://github.com/get-enlace/enlace)
+
+This adapter's job is intentionally small: it serves your OpenAPI document and the canvas UI's static bundle. Nothing else — wiring up a chain, concurrent execution, and holding credentials all happen client-side in the browser.
 
 ## Install
 
@@ -15,7 +14,7 @@ client-side, in the browser, once the page loads.
 <dependency>
     <groupId>io.github.get-enlace</groupId>
     <artifactId>enlace-spring-boot-starter</artifactId>
-    <version>0.0.2</version>
+    <version>0.0.9</version>
 </dependency>
 ```
 
@@ -81,13 +80,9 @@ Everything past that — parsing the spec into operations, letting you wire a ch
 actually sending requests to your API when you hit Run — happens in the browser, in the UI
 bundle. This adapter never sees or proxies that traffic.
 
-## Status
+## Architecture
 
-Pre-release scaffold. Persistence (saving/reloading workflows and credentials) is out of
-scope for this phase — canvas state and credentials live in browser memory for the session
-only. CI/CD is written (build/test on PR, dev/prod publishing — see
-[`CONTRIBUTING.md`](CONTRIBUTING.md#cicd)) but dev/prod publishing can't run end to end until
-its one-time external setup (GitHub Environments, Maven Central credentials) is done.
+The Spring Boot starter is intentionally thin and symmetric across Enlace languages: it mounts a web filter that serves the static UI assets and exposes your OpenAPI document. All workflow execution runs client-side directly from your browser to your API endpoints, with local IndexedDB autosave.
 
 ## Contributing
 

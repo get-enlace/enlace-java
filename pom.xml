@@ -10,7 +10,7 @@
     <packaging>jar</packaging>
 
     <name>enlace-spring-boot-starter</name>
-    <description>Spring Boot starter for Enlace — a visual, chained-execution canvas for OpenAPI APIs</description>
+    <description>Spring Boot starter for Enlace — an interactive visual execution graph for OpenAPI APIs</description>
     <url>https://github.com/get-enlace/enlace-java</url>
 
     <licenses>
